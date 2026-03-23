@@ -14,6 +14,10 @@ EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 DATASET_PATH = "data/processed/medical_qa_dataset.json"
 MAX_RECORDS = 10000
 
+# cache singletons for runtime reuse
+_db = None
+_embeddings = None
+
 def load_dataset() -> List[dict]:
     logger.info("Carregando dataset...")
     
@@ -86,26 +90,38 @@ def build_vectorstore():
     os.makedirs(OUTPUT_PATH, exist_ok=True)
     db.save_local(OUTPUT_PATH)
     logger.info(f"Vectorstore salvo em: {OUTPUT_PATH}")
+    global _db
+    _db = db
     logger.info("Finalizando geração de vectorstore")
 
+def _get_embeddings():
+    global _embeddings
+    if _embeddings is None:
+        logger.info("Carregando modelo de embeddings...")
+        _embeddings = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL)
+        logger.info("Modelo de embeddings carregado (OK)")
+    return _embeddings
+
+
 def load_vectorstore():
+    global _db
+    if _db is not None:
+        logger.debug("Vectorstore já em cache; usando instância existente")
+        return _db
+
     logger.info("Carregando vectorstore...")
     if not os.path.exists(os.path.join(OUTPUT_PATH, "index.faiss")):
-        logger.error("Vectorstore não encontrado. Execute build() primeiro.")
-        raise FileNotFoundError(
-            "Vectorstore não encontrado. Execute build() primeiro."
-        )
+        logger.warning("Vectorstore não encontrado. Executando build_vectorstore().")
+        build_vectorstore()
 
-    embeddings = HuggingFaceEmbeddings(
-        model_name="sentence-transformers/all-MiniLM-L6-v2"
-    )
-    faiss = FAISS.load_local(
+    embeddings = _get_embeddings()
+    _db = FAISS.load_local(
         OUTPUT_PATH,
         embeddings,
         allow_dangerous_deserialization=True
     )
     logger.info("Carregando vectorstore... (OK)")
-    return faiss;
+    return _db
 
 def search(query: str, k: int = 5):
     db = load_vectorstore()
@@ -116,3 +132,5 @@ def search(query: str, k: int = 5):
     for i, doc in enumerate(results):
         logger.info(f"\n--- Resultado {i+1} ---")
         logger.info(doc.page_content[:500])
+
+    return results

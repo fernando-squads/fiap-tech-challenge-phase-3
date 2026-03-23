@@ -23,6 +23,10 @@ O comando `pip install` é usado para instalar pacotes de software para Python a
 
 Este comando é usado para criar um arquivo chamado requirements.txt que lista todos os pacotes Python instalados no ambiente atual, juntamente com suas versões específicas.
 
+### `pip install --no-cache-dir -r requirements.txt`
+
+Este comando é usado para instalar dependências Python listadas em um arquivo requirements.txt, com um detalhe importante: sem usar o cache do pip
+
 ### `python my_script.py`
 
 O comando `python my_script.py` é usado para executar um programa Python a partir da linha de comando. A extensão de arquivo `.py` é a convenção padrão para salvar arquivos que contêm código-fonte Python.
